@@ -73,12 +73,42 @@
             flex-wrap: wrap;
         }
 
+        .click-effect {
+            position: absolute;
+            width: 100px;
+            height: 100px;
+            background: white;
+            border-radius: 50%;
+            opacity: 0.7;
+            transform: scale(0);
+            pointer-events: none;
+            animation: click-pop 0.4s ease-out forwards;
+            z-index: 9999;
+        }
+
+        @keyframes click-pop {
+            to {
+                transform: scale(2);
+                opacity: 0;
+            }
+        }
+
         .video-box {
             background: white;
             border: 2px solid #ccc;
             padding: 10px;
             border-radius: 10px;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .red-glow {
+            background-color: rgba(255, 0, 0, 0.08);
+            /* 연한 붉은 배경 */
+            border-color: crimson;
+            /* 테두리 붉게 */
+            box-shadow: 0 0 10px rgba(220, 20, 60, 0.5);
+            /* 붉은빛 glow */
+            transition: all 0.3s ease;
         }
 
         video {
@@ -159,6 +189,7 @@
             실패하면...<br>뜸부기의 행방이 묘연해집니다.
         </div>
         <button id="start-button">게임 시작</button>
+        <button id="hard-button" style="background-color: crimson;">뜸부기의 도전</button>
     </div>
 
     <!-- 게임 화면 -->
@@ -166,7 +197,7 @@
         <audio id="bg-music" src="baserythme.mp3"></audio>
         <div id="heart-count">❤️ x 0</div>
         <div id="game-area">
-            <div class="video-box">
+            <div class="video-box" id="ddmbugi-box">
                 <video id="ddmbugi" src="ddmbugi.webm" playsinline></video>
             </div>
             <div class="video-box">
@@ -179,6 +210,8 @@
 
     <!-- 게임 종료 화면 -->
     <div id="end-screen">
+        <div id="hard-mode-label"
+            style="display:none; color:crimson; font-size: 36px; font-weight: bold; margin-bottom: 10px;">뜸부기의 도전</div>
         <h2 id="end-message"></h2>
         <div id="final-hearts"></div>
         <div id="offset-info"></div>
@@ -200,10 +233,12 @@
         const gameScreen = document.getElementById('game-screen');
         const endScreen = document.getElementById('end-screen');
         const startButton = document.getElementById('start-button');
+        const hardButton = document.getElementById('hard-button'); // 🔴 도전 버튼
         const retryButton = document.getElementById('retry-button');
 
         const ddmbugiVideo = document.getElementById('ddmbugi');
         const ddaogiVideo = document.getElementById('ddaogi');
+
         const ddmbugiSound = document.getElementById('ddmbugi-sound');
         const ddaogiSound = document.getElementById('ddaogi-sound');
         const bgMusic = document.getElementById('bg-music');
@@ -221,73 +256,60 @@
         const failSound3 = document.getElementById('fail-sound3');
         const failSound4 = document.getElementById('fail-sound4');
 
+        const ddmbugiEl = document.getElementById('ddmbugi');
+        const ddaogiEl = document.getElementById('ddaogi');
+
+        ddmbugiEl.addEventListener('click', (e) => {
+            playDdmbugi();
+            showClickEffect(e.clientX, e.clientY);
+        });
+
+        ddaogiEl.addEventListener('click', (e) => {
+            showClickEffect(e.clientX, e.clientY);
+        });
+
         let hearts = 0;
         let isListening = false;
         let responseStart = null;
         let responseTimer = null;
         let ddaogiInterval = null;
 
-        // setTimeout 저장
-
-        function scheduleNextBgMusic() {
-            const nextTarget = bgMusicStartTime + bgMusicTick * 8000;
-            const now = performance.now();
-            const delay = Math.max(0, nextTarget - now);
-
-            bgMusicTimeout = setTimeout(() => {
-                bgMusic.pause();
-                bgMusic.currentTime = 0;
-                bgMusic.play().catch((err) => {
-                    console.warn('배경음악 재생 실패:', err);
-                });
-
-                bgMusicTick++;
-                scheduleNextBgMusic(); // 다음 예약
-            }, delay);
-        }
-
-        function playBgMusic() {
-            bgMusic.pause();
-            bgMusic.currentTime = 0;
-            const playPromise = bgMusic.play();
-            if (playPromise !== undefined) {
-                playPromise.catch((err) => {
-                    console.warn('배경음악 재생 실패:', err);
-                });
-            }
-
-            // 다음 재생 예약 (7.9초 후)
-            bgMusicTimeout = setTimeout(() => {
-                playBgMusic();
-            }, 7900);
-        }
         let bgMusicStartTime = null;
         let bgMusicTick = 0;
         let bgMusicTimeout = null;
         let gameEnded = false;
+
+        // ✅ 하드모드 관련
+        let isHardMode = false;
+        let winScore = 30;
+        let ddaogiIntervalTime = 500;
 
         function startGame() {
             startScreen.style.display = 'none';
             gameScreen.style.display = 'flex';
             endScreen.style.display = 'none';
 
-            bgMusicStartTime = performance.now(); // 기준 시각 저장
-            bgMusicTick = 1;
-            scheduleNextBgMusic();
-
             hearts = 0;
             isListening = false;
             gameEnded = false;
             updateHeartDisplay();
 
+            const ddmbugiBox = document.getElementById('ddmbugi-box');
+
+            if (isHardMode) {
+                ddmbugiBox.classList.add('red-glow'); // 하드모드면 붉은 효과 켜기
+            } else {
+                ddmbugiBox.classList.remove('red-glow'); // 일반모드면 꺼두기
+            }
+
+            // ✅ 모드에 따라 설정
+            winScore = isHardMode ? 60 : 30;
+            ddaogiIntervalTime = isHardMode ? 250 : 500;
+
+            // ✅ 배경음악 예약 시작
             bgMusicStartTime = performance.now();
             bgMusicTick = 0;
             scheduleNextBgMusic();
-
-            // ✅ 정밀 타이밍 기준 시작
-            bgMusicStartTime = performance.now();
-            bgMusicTick = 0;
-            scheduleNextBgMusic(); // 🎵 첫 재생 및 반복 예약
 
             ddmbugiVideo.pause();
             ddmbugiVideo.currentTime = 0;
@@ -299,8 +321,39 @@
                     if (Math.random() < 0.25 && !isListening) {
                         playDdaogi();
                     }
-                }, 500);
+                }, ddaogiIntervalTime);
             }, 2000);
+        }
+
+        function showClickEffect(x, y) {
+            const effect = document.createElement('div');
+            effect.className = 'click-effect';
+            effect.style.left = `${x - 50}px`;
+            effect.style.top = `${y - 50}px`;
+            document.body.appendChild(effect);
+
+            setTimeout(() => {
+                effect.remove();
+            }, 400);
+        }
+
+        function scheduleNextBgMusic() {
+            const nextTarget = bgMusicStartTime + bgMusicTick * 8000;
+            const now = performance.now();
+            const delay = Math.max(0, nextTarget - now);
+
+            bgMusicTimeout = setTimeout(() => {
+                if (gameEnded) return;
+
+                bgMusic.pause();
+                bgMusic.currentTime = 0;
+                bgMusic.play().catch((err) => {
+                    console.warn('배경음악 재생 실패:', err);
+                });
+
+                bgMusicTick++;
+                scheduleNextBgMusic();
+            }, delay);
         }
 
         function playDdaogi() {
@@ -340,7 +393,7 @@
                 hearts++;
                 updateHeartDisplay(true);
 
-                if (hearts >= 30) endGame(true);
+                if (hearts >= winScore) endGame(true); // ✅ 승리 조건
             } else {
                 endGame(false, diff);
             }
@@ -350,9 +403,11 @@
             clearInterval(ddaogiInterval);
             clearTimeout(responseTimer);
             clearTimeout(bgMusicTimeout);
-            gameEnded = true; // 🎵 반복 예약 제거
-
+            gameEnded = true;
             isListening = false;
+
+            const hardLabel = document.getElementById('hard-mode-label');
+            hardLabel.style.display = isHardMode ? 'block' : 'none';
 
             gameScreen.style.display = 'none';
             endScreen.style.display = 'flex';
@@ -366,28 +421,29 @@
                 endMessage.innerText = "계획대로..\n따오기의 계획은 완벽습니다..";
                 resultImg.src = "failsplan.png";
                 successSound.play();
-
                 const effect = document.getElementById("effect-img");
-                effect.src = "failey.png";
+                effect.src = "faileye.png";
                 effect.style.display = "block";
-
             } else {
-                if (hearts <= 6) {
+                let h = hearts;
+                if (isHardMode) h = Math.floor(h / 2); // 하드모드는 기준을 2로 나눠서 비교
+
+                if (h <= 6) {
                     endMessage.innerText = "대실패!\n뜸부기는 포로가 되었습니다..";
                     resultImg.src = "ddmbugiprison.png";
                     failSound1.play();
-                } else if (hearts <= 13) {
+                } else if (h <= 13) {
                     endMessage.innerText = "실패!\n적어도 탈출은 했네요.";
                     resultImg.src = "butboon.png";
                     failSound2.play();
-                } else if (hearts === 14) {
+                } else if (h === 14) {
                     endMessage.innerText = "레나 등장!\n레나가 왜 여기에?";
                     resultImg.src = "lena.png";
                     failSound3.play();
                     const effect = document.getElementById("effect-img");
                     effect.src = "lenaeffect.png";
                     effect.style.display = "block";
-                } else if (hearts <= 21) {
+                } else if (h <= 21) {
                     endMessage.innerText = "성공!\n충분히 놀았습니다";
                     resultImg.src = "win.png";
                     failSound3.play();
@@ -405,6 +461,17 @@
             }
         }
 
+        function updateHeartDisplay(withAnimation = false) {
+            heartCountDisplay.innerText = `❤️ x ${hearts}`;
+            if (withAnimation) {
+                heartCountDisplay.classList.add('pop');
+                setTimeout(() => {
+                    heartCountDisplay.classList.remove('pop');
+                }, 200);
+            }
+        }
+
+        // 조작 이벤트
         document.addEventListener('keydown', (e) => {
             if (e.code === 'Space') playDdmbugi();
         });
@@ -415,40 +482,19 @@
 
         startButton.addEventListener('click', (e) => {
             e.stopPropagation();
+            isHardMode = false;
+            startGame();
+        });
+
+        hardButton.addEventListener('click', (e) => {
+            e.stopPropagation();
+            isHardMode = true;
             startGame();
         });
 
         retryButton.addEventListener('click', () => {
             location.reload();
         });
-        function scheduleNextBgMusic() {
-            const nextTarget = bgMusicStartTime + bgMusicTick * 8000;
-            const now = performance.now();
-            const delay = Math.max(0, nextTarget - now);
-
-            bgMusicTimeout = setTimeout(() => {
-                if (gameEnded) return; // ✅ 게임이 끝났으면 더 이상 재생 안 함
-
-                bgMusic.pause();
-                bgMusic.currentTime = 0;
-                bgMusic.play().catch((err) => {
-                    console.warn('배경음악 재생 실패:', err);
-                });
-
-                bgMusicTick++;
-                scheduleNextBgMusic(); // 다음 예약
-            }, delay);
-        }
-
-        function updateHeartDisplay(withAnimation = false) {
-            heartCountDisplay.innerText = `❤️ x ${hearts}`;
-            if (withAnimation) {
-                heartCountDisplay.classList.add('pop');
-                setTimeout(() => {
-                    heartCountDisplay.classList.remove('pop');
-                }, 200);
-            }
-        }
     </script>
 </body>
 
