@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <title>따오기와 뜸부기</title>
+    <link href="https://fonts.googleapis.com/css2?family=Pretendard&display=swap" rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #ffffff;
+            font-family: 'Pretendard', sans-serif;
+            color: #333;
+            text-align: center;
+        }
+
+        header {
+            padding: 30px 20px 20px;
+            font-size: 32px;
+            font-weight: bold;
+            background-color: #fff;
+            border-bottom: 1px solid #eee;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        #start-screen,
+        #game-screen,
+        #end-screen {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: calc(100vh - 100px);
+            padding: 20px;
+        }
+
+        #start-screen,
+        #end-screen {
+            display: flex;
+        }
+
+        button {
+            margin-top: 30px;
+            padding: 12px 32px;
+            font-size: 18px;
+            font-weight: bold;
+            background-color: #333;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+
+        button:hover {
+            background-color: #555;
+        }
+
+        #game-area {
+            display: flex;
+            justify-content: center;
+            gap: 60px;
+            padding: 40px 20px;
+            flex-wrap: wrap;
+        }
+
+        .video-box {
+            background: white;
+            border: 2px solid #ccc;
+            padding: 10px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        video {
+            width: 300px;
+            height: auto;
+            border-radius: 6px;
+        }
+
+        #heart-count {
+            font-size: 60px;
+            margin-top: 20px;
+            transition: transform 0.2s ease;
+        }
+
+        .pop {
+            transform: scale(1.4);
+        }
+
+        .effect-image {
+            position: absolute;
+            top: 60%;
+            left: 50%;
+            width: 300px;
+            max-width: 90vw;
+            transform: translate(-50%, -50%);
+            z-index: 9999;
+            animation: flash 0.8s infinite;
+            pointer-events: none;
+        }
+
+        @keyframes flash {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.3;
+            }
+        }
+
+        #result-img {
+            width: auto;
+            max-width: 80vw;
+            height: auto;
+            max-height: 80vh;
+            margin-top: 20px;
+            border-radius: 20px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+        }
+
+        #offset-info {
+            margin-top: 10px;
+            font-size: 17px;
+            color: #c00;
+        }
+
+        .description {
+            font-size: 25px;
+            color: #555;
+            margin-top: 10px;
+            line-height: 1.6;
+            max-width: 400px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>따오기와 뜸부기</header>
+
+    <!-- 시작 화면 -->
+    <div id="start-screen">
+        <div class="description">
+            뜸부기 조작법<br><strong>스페이스바</strong> 또는 <strong>뜸부기 클릭</strong><br><br>
+            따오기가 울면,<br>뜸부기는 정확히 <strong>1초</strong> 안에<br>따라 울어야 합니다.<br><br>
+            실패하면...<br>뜸부기의 행방이 묘연해집니다.
+        </div>
+        <button id="start-button">게임 시작</button>
+    </div>
+
+    <!-- 게임 화면 -->
+    <div id="game-screen">
+        <audio id="bg-music" src="baserythme.mp3"></audio>
+        <div id="heart-count">❤️ x 0</div>
+        <div id="game-area">
+            <div class="video-box">
+                <video id="ddmbugi" src="ddmbugi.webm" playsinline></video>
+            </div>
+            <div class="video-box">
+                <video id="ddaogi" src="ddaogi.webm" preload="auto" playsinline></video>
+            </div>
+        </div>
+    </div>
+
+    <img id="effect-img" class="effect-image" src="" style="display:none;" />
+
+    <!-- 게임 종료 화면 -->
+    <div id="end-screen">
+        <h2 id="end-message"></h2>
+        <div id="final-hearts"></div>
+        <div id="offset-info"></div>
+        <img id="result-img" src="" alt="">
+        <button id="retry-button">재도전</button>
+    </div>
+
+    <!-- 사운드 -->
+    <audio id="ddmbugi-sound" src="ddmbugi.mp3"></audio>
+    <audio id="ddaogi-sound" src="ddaogi.mp3"></audio>
+    <audio id="success-sound" src="amateras.mp3"></audio>
+    <audio id="fail-sound1" src="thunder.mp3"></audio>
+    <audio id="fail-sound2" src="wow.mp3"></audio>
+    <audio id="fail-sound3" src="nurang.mp3"></audio>
+    <audio id="fail-sound4" src="ddaogirock.mp3"></audio>
+
+    <script>
+        const startScreen = document.getElementById('start-screen');
+        const gameScreen = document.getElementById('game-screen');
+        const endScreen = document.getElementById('end-screen');
+        const startButton = document.getElementById('start-button');
+        const retryButton = document.getElementById('retry-button');
+
+        const ddmbugiVideo = document.getElementById('ddmbugi');
+        const ddaogiVideo = document.getElementById('ddaogi');
+        const ddmbugiSound = document.getElementById('ddmbugi-sound');
+        const ddaogiSound = document.getElementById('ddaogi-sound');
+        const bgMusic = document.getElementById('bg-music');
+        const successSound = document.getElementById('success-sound');
+        const failSound = document.getElementById('fail-sound');
+
+        const heartCountDisplay = document.getElementById('heart-count');
+        const endMessage = document.getElementById('end-message');
+        const resultImg = document.getElementById('result-img');
+        const finalHearts = document.getElementById('final-hearts');
+        const offsetInfo = document.getElementById('offset-info');
+
+        const failSound1 = document.getElementById('fail-sound1');
+        const failSound2 = document.getElementById('fail-sound2');
+        const failSound3 = document.getElementById('fail-sound3');
+        const failSound4 = document.getElementById('fail-sound4');
+
+        let hearts = 0;
+        let isListening = false;
+        let responseStart = null;
+        let responseTimer = null;
+        let ddaogiInterval = null;
+
+        // setTimeout 저장
+
+        function scheduleNextBgMusic() {
+            const nextTarget = bgMusicStartTime + bgMusicTick * 8000;
+            const now = performance.now();
+            const delay = Math.max(0, nextTarget - now);
+
+            bgMusicTimeout = setTimeout(() => {
+                bgMusic.pause();
+                bgMusic.currentTime = 0;
+                bgMusic.play().catch((err) => {
+                    console.warn('배경음악 재생 실패:', err);
+                });
+
+                bgMusicTick++;
+                scheduleNextBgMusic(); // 다음 예약
+            }, delay);
+        }
+
+        function playBgMusic() {
+            bgMusic.pause();
+            bgMusic.currentTime = 0;
+            const playPromise = bgMusic.play();
+            if (playPromise !== undefined) {
+                playPromise.catch((err) => {
+                    console.warn('배경음악 재생 실패:', err);
+                });
+            }
+
+            // 다음 재생 예약 (7.9초 후)
+            bgMusicTimeout = setTimeout(() => {
+                playBgMusic();
+            }, 7900);
+        }
+        let bgMusicStartTime = null;
+        let bgMusicTick = 0;
+        let bgMusicTimeout = null;
+        let gameEnded = false;
+
+        function startGame() {
+            startScreen.style.display = 'none';
+            gameScreen.style.display = 'flex';
+            endScreen.style.display = 'none';
+
+            bgMusicStartTime = performance.now(); // 기준 시각 저장
+            bgMusicTick = 1;
+            scheduleNextBgMusic();
+
+            hearts = 0;
+            isListening = false;
+            gameEnded = false;
+            updateHeartDisplay();
+
+            bgMusicStartTime = performance.now();
+            bgMusicTick = 0;
+            scheduleNextBgMusic();
+
+            // ✅ 정밀 타이밍 기준 시작
+            bgMusicStartTime = performance.now();
+            bgMusicTick = 0;
+            scheduleNextBgMusic(); // 🎵 첫 재생 및 반복 예약
+
+            ddmbugiVideo.pause();
+            ddmbugiVideo.currentTime = 0;
+            ddmbugiVideo.load();
+
+            setTimeout(() => {
+                playDdaogi();
+                ddaogiInterval = setInterval(() => {
+                    if (Math.random() < 0.25 && !isListening) {
+                        playDdaogi();
+                    }
+                }, 500);
+            }, 2000);
+        }
+
+        function playDdaogi() {
+            ddaogiSound.pause();
+            ddaogiSound.currentTime = 0;
+            ddaogiSound.play();
+
+            ddaogiVideo.currentTime = 0;
+            ddaogiVideo.play();
+
+            isListening = true;
+            responseStart = performance.now();
+
+            clearTimeout(responseTimer);
+            responseTimer = setTimeout(() => {
+                if (isListening) endGame(false);
+            }, 1100);
+        }
+
+        function playDdmbugi() {
+            if (!isListening) return;
+
+            const now = performance.now();
+            const diff = now - responseStart;
+
+            if (diff >= 917 && diff <= 1083) {
+                ddmbugiSound.pause();
+                ddmbugiSound.currentTime = 0;
+                ddmbugiSound.play();
+
+                ddmbugiVideo.currentTime = 0;
+                ddmbugiVideo.play();
+
+                isListening = false;
+                clearTimeout(responseTimer);
+
+                hearts++;
+                updateHeartDisplay(true);
+
+                if (hearts >= 30) endGame(true);
+            } else {
+                endGame(false, diff);
+            }
+        }
+
+        function endGame(success, diff = null) {
+            clearInterval(ddaogiInterval);
+            clearTimeout(responseTimer);
+            clearTimeout(bgMusicTimeout);
+            gameEnded = true; // 🎵 반복 예약 제거
+
+            isListening = false;
+
+            gameScreen.style.display = 'none';
+            endScreen.style.display = 'flex';
+
+            bgMusic.pause();
+            bgMusic.currentTime = 0;
+
+            finalHearts.innerText = `❤️ 총 ${hearts}개 획득`;
+
+            if (success) {
+                endMessage.innerText = "계획대로..\n따오기의 계획은 완벽습니다..";
+                resultImg.src = "failsplan.png";
+                successSound.play();
+
+                const effect = document.getElementById("effect-img");
+                effect.src = "failey.png";
+                effect.style.display = "block";
+
+            } else {
+                if (hearts <= 6) {
+                    endMessage.innerText = "대실패!\n뜸부기는 포로가 되었습니다..";
+                    resultImg.src = "ddmbugiprison.png";
+                    failSound1.play();
+                } else if (hearts <= 13) {
+                    endMessage.innerText = "실패!\n적어도 탈출은 했네요.";
+                    resultImg.src = "butboon.png";
+                    failSound2.play();
+                } else if (hearts === 14) {
+                    endMessage.innerText = "레나 등장!\n레나가 왜 여기에?";
+                    resultImg.src = "lena.png";
+                    failSound3.play();
+                    const effect = document.getElementById("effect-img");
+                    effect.src = "lenaeffect.png";
+                    effect.style.display = "block";
+                } else if (hearts <= 21) {
+                    endMessage.innerText = "성공!\n충분히 놀았습니다";
+                    resultImg.src = "win.png";
+                    failSound3.play();
+                } else {
+                    endMessage.innerText = "대성공!\n뜸부기의 본심이였네요.";
+                    resultImg.src = "ddaogiprison.png";
+                    failSound4.play();
+                }
+
+                if (diff !== null) {
+                    const offset = Math.round(diff - 1000);
+                    const direction = offset < 0 ? "빨랐습니다" : "늦었습니다";
+                    offsetInfo.innerText = `${Math.abs(offset)}ms ${direction}!`;
+                }
+            }
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') playDdmbugi();
+        });
+
+        document.addEventListener('click', () => {
+            playDdmbugi();
+        });
+
+        startButton.addEventListener('click', (e) => {
+            e.stopPropagation();
+            startGame();
+        });
+
+        retryButton.addEventListener('click', () => {
+            location.reload();
+        });
+        function scheduleNextBgMusic() {
+            const nextTarget = bgMusicStartTime + bgMusicTick * 8000;
+            const now = performance.now();
+            const delay = Math.max(0, nextTarget - now);
+
+            bgMusicTimeout = setTimeout(() => {
+                if (gameEnded) return; // ✅ 게임이 끝났으면 더 이상 재생 안 함
+
+                bgMusic.pause();
+                bgMusic.currentTime = 0;
+                bgMusic.play().catch((err) => {
+                    console.warn('배경음악 재생 실패:', err);
+                });
+
+                bgMusicTick++;
+                scheduleNextBgMusic(); // 다음 예약
+            }, delay);
+        }
+
+        function updateHeartDisplay(withAnimation = false) {
+            heartCountDisplay.innerText = `❤️ x ${hearts}`;
+            if (withAnimation) {
+                heartCountDisplay.classList.add('pop');
+                setTimeout(() => {
+                    heartCountDisplay.classList.remove('pop');
+                }, 200);
+            }
+        }
+    </script>
+</body>
+
+</html>
