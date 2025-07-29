@@ -188,7 +188,7 @@
     <div id="start-screen">
         <div class="description">
             뜸부기 조작법<br><strong>스페이스바</strong> 또는 <strong>뜸부기 클릭</strong><br><br>
-            따오기가 울면,<br>뜸부기는 정확히 <strong>1초</strong>때<br>따라 울어야 합니다.<br><br>
+            따오기가 울면,<br>뜸부기는 정확히 <strong>1초</strong> 때<br>따라 울어야 합니다.<br><br>
             실패하면...<br>뜸부기의 행방이 묘연해집니다.
         </div>
         <button id="start-button">게임 시작</button>
@@ -232,6 +232,10 @@
     <audio id="fail-sound4" src="ddaogirock.mp3"></audio>
 
     <script>
+        if (/Mobi|Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+            alert("이 게임은 PC에서만 실행할 수 있습니다.");
+            document.body.innerHTML = "<h2 style='margin-top: 100px; font-size: 24px; color: crimson;'>⚠️ 모바일에서는 실행할 수 없습니다.<br>PC로 접속해주세요.</h2>";
+        }
         const startScreen = document.getElementById('start-screen');
         const gameScreen = document.getElementById('game-screen');
         const endScreen = document.getElementById('end-screen');
@@ -286,6 +290,9 @@
         let isHardMode = false;
         let winScore = 30;
         let ddaogiIntervalTime = 500;
+        let ddaogiProbability = 0.25;
+        let responseMin = 917;
+        let responseMax = 1083;
 
         function startGame() {
             startScreen.style.display = 'none';
@@ -308,6 +315,9 @@
             // ✅ 모드에 따라 설정
             winScore = isHardMode ? 60 : 30;
             ddaogiIntervalTime = isHardMode ? 250 : 500;
+            ddaogiProbability = isHardMode ? 0.5 : 0.25;
+            responseMin = isHardMode ? 917 : 876;
+            responseMax = isHardMode ? 1083 : 1124;
 
             // ✅ 배경음악 예약 시작
             bgMusicStartTime = performance.now();
@@ -321,7 +331,7 @@
             setTimeout(() => {
                 playDdaogi();
                 ddaogiInterval = setInterval(() => {
-                    if (Math.random() < 0.25 && !isListening) {
+                    if (Math.random() < ddaogiProbability && !isListening) {
                         playDdaogi();
                     }
                 }, ddaogiIntervalTime);
@@ -382,7 +392,7 @@
             const now = performance.now();
             const diff = now - responseStart;
 
-            if (diff >= 917 && diff <= 1083) {
+            if (diff >= responseMin && diff <= responseMax) {
                 ddmbugiSound.pause();
                 ddmbugiSound.currentTime = 0;
                 ddmbugiSound.play();
@@ -421,7 +431,7 @@
             finalHearts.innerText = `❤️ 총 ${hearts}개 획득`;
 
             if (success) {
-                endMessage.innerText = "계획대로..\n따오기의 계획은 완벽했습니다.";
+                endMessage.innerText = "계획대로..\n따오기의 계획은 완벽했습니다..";
                 resultImg.src = "failsplan.png";
                 successSound.play();
                 const effect = document.getElementById("effect-img");
@@ -501,5 +511,4 @@
     </script>
 </body>
 
-</html>
 </html>
